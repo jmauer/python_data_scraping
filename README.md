@@ -1,2 +1,2 @@
-# python_data_scrapping
-A simple data scrapping script to extract data from the Bundesliga.
+# Bundesliga Data scraping
+A simple data scraping python script to extract data from the Bundesliga.
