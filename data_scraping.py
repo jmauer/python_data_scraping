@@ -1,35 +1,47 @@
 from bs4 import BeautifulSoup
 import pandas as pd
 import requests 
-import time
-import io
 
-all_teams = [] ## list to store all teams
 
-html = requests.get('https://fbref.com/en/comps/20/Bundesliga-Stats').text ##getting the html from the website
-soup = BeautifulSoup(html, 'lxml')
-table = soup.find_all('table', class_ = 'stats_table')[0] ##only want the first table, therefore the first index
+## Scraping the data from the Bundesliga website
 
-links = table.find_all('a') ## finding all links in the table 
-links = [l.get("href") for l in links] ##parsing through links
-links = [l for l in links if '/squads/' in l] ##filtering through links to only get squads
+def get_buli_stats(url):
+    r = requests.get(url)
+    soup = BeautifulSoup(r.text, 'html.parser')
+    tablelist = []
+    buli_table = soup.find('table')
 
-team_urls = [f"https://fbref.com{l}" for l in links] ## formatting back to links
 
-for team_url in team_urls: 
-    team_name = team_url.split("/")[-1].replace("-Stats", "") ##isolating the names of the teams
-    data = requests.get(team_url).text
-    soup = BeautifulSoup(data, 'lxml')
-    stats = soup.find_all('table', class_ = "stats_table")[0] ##again, only want the first table
+    for team in buli_table.find_all('tbody'):
+        rows = team.find_all('tr')
+        for row in rows:
+            buli_rank = row.find('td', class_='rank').text.strip()
+            buli_team = row.find('td', class_='team').find('div')['title'].strip()
+            buli_matches = row.find('td', class_='matches').text.strip()
+            buli_wins = row.find('td', class_='wins').text.strip()
+            buli_draws = row.find('td', class_='draws').text.strip()
+            buli_losses = row.find('td', class_='losses').text.strip()
+            buli_goals = row.find('td', class_='goals').text.strip()
+            buli_difference = row.find('td', class_='difference').text.strip()
+            buli_points = row.find('td', class_='pts').text.strip()
 
-    if stats and stats.columns: stats.columns = stats.columns.droplevel() ##formatting the stats
+            all_teams = {
+                'rank': buli_rank,
+                'name': buli_team,
+                'matches': buli_matches,
+                'wins': buli_wins,
+                'draws': buli_draws,
+                'losses': buli_losses,
+                'goals': buli_goals,
+                'difference': buli_difference,
+                'points': buli_points
+            }
+            tablelist.append(all_teams)
 
-    # Assuming 'team_data' is a BeautifulSoup Tag
-    # Convert it into a DataFrame
-    team_data = pd.read_html(io.StringIO(str(stats)))[0]
-    team_data["Team"]= team_name
-    all_teams.append(team_data) ## appending the data
-    time.sleep(5) ## making sure we don't get blocked from scraping by delaying each loop by 5 seconds
+    buli = pd.DataFrame(tablelist)
+    buli.to_csv("stats.csv") ## importing to csv
 
-stat_df = pd.concat(all_teams) ## concatenating all of the stats
-stat_df.to_csv("stats.csv") ## importing to csv
+    return tablelist
+    
+data = get_buli_stats('https://www.bundesliga.com/de/bundesliga/tabelle') ##getting the data from the website
+
